@@ -167,6 +167,7 @@ namespace PPPP
         
         private void NCopias_ValueChanged(object sender, EventArgs e)
         {
+            //H
             List<Image> imagenesDuplicadas = new List<Image>();
             for (int i = 0; i < NCopias.Value; i++)
             {
