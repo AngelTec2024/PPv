@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
+using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -16,6 +17,7 @@ namespace PPPP
         public StreamReader lector;
         PictureBox Hoja;
         int NC;
+        private List<Image> imagenes = new List<Image>();
 
         public InterfazEdicion()
         {
@@ -165,49 +167,95 @@ namespace PPPP
         
         private void NCopias_ValueChanged(object sender, EventArgs e)
         {
-            NC = (int)NCopias.Value;
-            AgrImgHoj(NC);
-                
+            List<Image> imagenesDuplicadas = new List<Image>();
+            for (int i = 0; i < NCopias.Value; i++)
+            {
+                imagenesDuplicadas.AddRange(imagenes);
+            }
+
+            // Llamar a AgrImgHoj con las imágenes duplicadas
+            AgrImgHoj(imagenesDuplicadas);
+
         }
 
-        private void AgrImgHoj(int nC)
+        private List<Image> ObtenerImagenesSeleccionadas()
         {
-            Hoja.Controls.Clear();
+            List<Image> imagenes = new List<Image>();
 
-            int hojaAncho = Hoja.Width; // Ancho del contenedor Hoja
-            int maxImagenesPorLinea = hojaAncho / 120; // Calcula cuántas imágenes pueden caber en una línea
-            int posX = 0; // Posición horizontal inicial
-            int posY = 0; // Posición vertical inicial
+            OpenFileDialog openFileDialog = new OpenFileDialog();
+            openFileDialog.Multiselect = true;
+            openFileDialog.Filter = "Archivos de imagen|*.jpg;*.jpeg;*.png;*.bmp;*.gif";
 
-            for (int i = 0; i < nC; i++)
+            if (openFileDialog.ShowDialog() == DialogResult.OK)
             {
-                // Crear un nuevo PictureBox para la imagen
-                PictureBox pictureBox1 = new PictureBox();
-                pictureBox1.Size = new Size(100, 100); // Tamaño de la imagen dentro del panel
-                pictureBox1.SizeMode = PictureBoxSizeMode.Zoom; // Escalar la imagen para ajustarse al PictureBox
-                pictureBox1.Image = Image.FromFile(openFileDialog1.FileName); // Cargar la imagen desde el archivo seleccionado
-
-                pictureBox1.Location = new Point(posX, posY);
-                // Calcular la posición en la hoja para cada imagen
-                //int posX = i * 120; // Ajusta el valor según el espacio que quieras dejar entre cada imagen
-                //int posY = 0; // Ajusta la posición vertical según tu diseño
-
-                // Establecer la posición del PictureBox en la hoja
-                pictureBox1.Location = new Point(posX, posY);
-
-                // Agregar el PictureBox al PictureBox de la hoja
-                Hoja.Controls.Add(pictureBox1);
-
-                posX += 120; // Mueve la posición horizontal para la próxima imagen
-
-                // Si llegamos al final de la línea, salta a la siguiente línea
-                if ((i + 1) % maxImagenesPorLinea == 0)
+                foreach (string filename in openFileDialog.FileNames)
                 {
-                    posX = 0; // Reinicia la posición horizontal
-                    posY += 120; // Mueve la posición vertical para la próxima línea
+                    try
+                    {
+                        Image imagen = Image.FromFile(filename);
+                        imagenes.Add(imagen);
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show("Error al cargar la imagen: " + ex.Message);
+                    }
                 }
             }
 
+            return imagenes;
+        }
+
+        private void btnAgregarImagenes_Click(object sender, EventArgs e)
+        {
+            // Este método será llamado cuando el usuario quiera agregar imágenes.
+            // Llamamos a ObtenerImagenesSeleccionadas para obtener las imágenes seleccionadas por el usuario.
+            imagenes = ObtenerImagenesSeleccionadas();
+
+            // Llamamos a AgrImgHoj con las imágenes obtenidas.
+            AgrImgHoj(imagenes);
+        }
+
+
+
+        private void AgrImgHoj(List<Image> imagenes)
+        {
+            Hoja.Controls.Clear();
+
+            // Dimensiones de la imagen
+            int imagenAncho = 100;
+            int imagenAlto = 100;
+
+            // Máximo número de imágenes por fila
+            int maxImagenesPorLinea = Hoja.Width / (imagenAncho + 20); // Se agrega un espacio de 20 píxeles entre cada imagen
+
+            // Posición inicial
+            int posX = 0;
+            int posY = 0;
+
+            foreach (Image imagen in imagenes)
+            {
+                // Crear un nuevo PictureBox para cada imagen
+                PictureBox pictureBox = new PictureBox();
+                pictureBox.Size = new Size(imagenAncho, imagenAlto);
+                pictureBox.SizeMode = PictureBoxSizeMode.Zoom;
+                pictureBox.Image = imagen;
+
+                // Establecer la posición del PictureBox
+                pictureBox.Location = new Point(posX, posY);
+
+                // Agregar el PictureBox a Hoja
+                Hoja.Controls.Add(pictureBox);
+
+                // Actualizar las coordenadas para la próxima imagen
+                posX += imagenAncho + 20; // 20 es el espacio entre cada imagen
+
+                // Si el número de imágenes en la fila actual alcanza el máximo, pasar a la siguiente fila
+                if (Hoja.Controls.Count % maxImagenesPorLinea == 0)
+                {
+                    posX = 0; // Reiniciar la posición X
+                    posY += imagenAlto + 20; // Moverse a la siguiente fila
+                }
+            }
         }
 
         private void label2_Click(object sender, EventArgs e)
@@ -219,28 +267,72 @@ namespace PPPP
         {
 
         }
-        /*
-private void Hoja_SizeChanged(object sender, EventArgs e)
-{
-// Obtener el nuevo tamaño de la hoja
 
-// Recorrer todos los PictureBox hijos de la hoja
-foreach (Control control in Hoja.Controls)
-{
-if (control is PictureBox pictureBox)
-{
-  // Ajustar el tamaño del PictureBox hijo al nuevo tamaño de la hoja
-  int nuevoAncho = (int)(Hoja.Width / 1.1);
-  int nuevoAlto = (int)(Hoja.Height / 1.1);
-  Hoja.ClientSize = new Size(nuevoAncho, nuevoAlto);
+        private void ExportarHojaComoJPG(string rutaArchivo)
+        {
+            Bitmap hojaBitmap = new Bitmap(Hoja.Width, Hoja.Height);
+
+            using (Graphics g = Graphics.FromImage(hojaBitmap))
+            {
+                // Dibujamos el fondo blanco
+                g.Clear(Color.White);
+
+                foreach (Control control in Hoja.Controls)
+                {
+                    if (control is PictureBox pictureBox)
+                    {
+                        // Obtenemos las coordenadas relativas del PictureBox en el contenedor
+                        Point pictureBoxLocation = pictureBox.Location;
+                        Point pictureBoxRelativeLocation = Hoja.PointToClient(pictureBoxLocation);
+
+                        // Dibujamos la imagen en las coordenadas relativas
+                        g.DrawImage(pictureBox.Image, pictureBoxRelativeLocation);
+                    }
+                }
+            }
+
+            hojaBitmap.Save(rutaArchivo, ImageFormat.Jpeg);
+        }
+
+        private void btnGuardar_Click(object sender, EventArgs e)
+        {
+            // Mostrar un cuadro de diálogo para que el usuario elija la ubicación y el nombre del archivo
+            SaveFileDialog saveFileDialog = new SaveFileDialog();
+            saveFileDialog.Filter = "Archivos de imagen JPG|*.jpg";
+            saveFileDialog.Title = "Guardar hoja como JPG";
+            if (saveFileDialog.ShowDialog() == DialogResult.OK)
+            {
+                // Llamar al método para exportar la hoja como JPG con la ruta de archivo seleccionada
+                ExportarHojaComoJPG(saveFileDialog.FileName);
+            }
+        }
+    } ////////////////////////////////
+
 }
-}
 
+/* // Llamada a este método cuando quieras exportar la hoja como JPG, por ejemplo, desde un botón
+ private void btnExportarHoja_Click(object sender, EventArgs e)
+ {
+     // Mostrar un cuadro de diálogo para que el usuario elija la ubicación y el nombre del archivo
+     SaveFileDialog saveFileDialog = new SaveFileDialog();
+     saveFileDialog.Filter = "Archivos de imagen JPG|*.jpg";
+     saveFileDialog.Title = "Guardar hoja como JPG";
+     if (saveFileDialog.ShowDialog() == DialogResult.OK)
+     {
+         // Llamar al método para exportar la hoja como JPG con la ruta de archivo seleccionada
+         ExportarHojaComoJPG(saveFileDialog.FileName);
+     }
+ }
 
-}*/
-
-
-
-    }
-
-}
+ private void btnGuardar_Click(object sender, EventArgs e)
+ {
+     // Mostrar un cuadro de diálogo para que el usuario elija la ubicación y el nombre del archivo
+     SaveFileDialog saveFileDialog = new SaveFileDialog();
+     saveFileDialog.Filter = "Archivos de imagen JPG|*.jpg";
+     saveFileDialog.Title = "Guardar hoja como JPG";
+     if (saveFileDialog.ShowDialog() == DialogResult.OK)
+     {
+         // Llamar al método para exportar la hoja como JPG con la ruta de archivo seleccionada
+         ExportarHojaComoJPG(saveFileDialog.FileName);
+     }
+ }*/
