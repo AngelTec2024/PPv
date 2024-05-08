@@ -183,7 +183,7 @@
             // NCopias
             // 
             this.NCopias.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.NCopias.Location = new System.Drawing.Point(494, 420);
+            this.NCopias.Location = new System.Drawing.Point(530, 439);
             this.NCopias.Name = "NCopias";
             this.NCopias.Size = new System.Drawing.Size(111, 35);
             this.NCopias.TabIndex = 8;
